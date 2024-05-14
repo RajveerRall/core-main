@@ -1,0 +1,479 @@
+default:
+  image: git.apps.airliquide.com:5000/gio/registry-images/tech-guides/tech-guides:5965f8fa
+
+.develop:variables:
+  # DEVELOP VARIABLE
+  # Remember to update include ref in client.yml
+
+  # Set PIPELINE_DEVELOP to true (default false)
+  #   It help for pipeline development
+  PIPELINE_DEVELOP: "false"
+
+  # VAR_DEVELOP_CORE_REF can not be main or master
+  VAR_DEVELOP_CORE_REF: "48-pipeline-create-merge-request-to-update-config-files"
+
+  # NOTE: [REGISTERED] [FORKED]
+  # Allow trigger core pipeline from feature branch (default false)
+  VAR_DEVELOP_JOB_TRIGGER: "false"
+
+  # NOTE: [CORE]
+  # Enable/Disable Coverage on push (default true)
+  VAR_DEVELOP_JOB_COVERAGE: "true"
+  # Enable/Disable Sonar on push (default true)
+  VAR_DEVELOP_JOB_SONAR: "true"
+
+  # NOTE: [CORE] [REGISTERED] [FORKED]
+  # Enable/Disable prepare job (default true)
+  VAR_DEVELOP_JOB_PREPARE: "true"
+
+  # NOTE: [CORE] [REGISTERED] [FORKED]
+  # Enable/Disable build job (default true)
+  VAR_DEVELOP_JOB_BUILD: "true"
+
+  # NOTE: [CORE]
+  # NOTE: if VAR_DEVELOP_JOB_BUILD is set to false, update:config job will fail due to missing artifacts
+  # Allow config update on push (default false)
+  VAR_DEVELOP_JOB_UPDATECONFIG: "false"
+  VAR_DEVELOP_JOB_UPDATECONFIG_PROJECT_ID: "4947"
+  VAR_DEVELOP_JOB_UPDATECONFIG_PROJECT_TITLE: "Cloud Services"
+  VAR_DEVELOP_JOB_UPDATECONFIG_COMMIT_SHA: "926d73f8c378713e45abff443d81d0294fcb83d2"
+
+  # NOTE: [CORE] [REGISTERED] [FORKED]
+  # Enable/Disable pages job (default true)
+  VAR_DEVELOP_JOB_PAGES: "true"
+
+.common:
+  get-project-id:
+    - |
+      echo -e "CI_API_V4_URL           = \e[39;42;1m${CI_API_V4_URL}\e[0m"
+      echo -e "CI_PROJECT_ID           = \e[39;42;1m${CI_PROJECT_ID}\e[0m"
+
+    - 'TOTAL_PAGES=$(curl --header "Private-Token: ${READ_API_TOKEN}" --silent --head "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/triggers?per_page=100" | grep "x-total-pages" | grep -o -e "[0-9]*")'
+    - PROJECT_ID=""
+    - >
+      for PAGE in $(seq $TOTAL_PAGES) ; do
+        TRIGGER_DESCRIPTION=($(curl --header "Private-Token: ${READ_API_TOKEN}" --silent --request GET "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/triggers?pagination=keyset&per_page=100&order_by=id&page=$PAGE" | jq -r ".[] | select(.token==\"${TOKEN_CORE_TRIGGER}\").description"))
+        if [[ "$TRIGGER_DESCRIPTION" != "" ]]; then
+          PROJECT_ID="${TRIGGER_DESCRIPTION:10}"
+          break
+        fi
+      done
+    - >
+      if [[ "${PROJECT_ID}" == "" ]]; then
+        echo "Error: Passed trigger token not found in registered trigger tokens"
+        exit 1
+      fi
+    - echo -e "PROJECT_ID              = \e[39;42;1m${PROJECT_ID}\e[0m"
+  get-repo-url:
+    - 'REPO_URL=$(curl --header "Private-Token: ${READ_API_TOKEN}" "${CI_API_V4_URL}/projects/${PROJECT_ID}" 2>/dev/null | jq -r ".http_url_to_repo")'
+    - REPO_URL=${REPO_URL::-4}
+    - echo "${REPO_URL}"
+  develop:
+    # DEVELOP
+    - if [[ "${PIPELINE_DEVELOP}" == "true" ]]; then
+    - |
+        echo -e "PIPELINE_DEVELOP                      \e[39;42;1m${PIPELINE_DEVELOP}\e[0m"
+        echo -e "VAR_DEVELOP_CORE_REF                  \e[39;42;1m${VAR_DEVELOP_CORE_REF}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_TRIGGER               \e[39;42;1m${VAR_DEVELOP_JOB_TRIGGER}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_COVERAGE              \e[39;42;1m${VAR_DEVELOP_JOB_COVERAGE}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_SONAR                 \e[39;42;1m${VAR_DEVELOP_JOB_SONAR}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_PREPARE               \e[39;42;1m${VAR_DEVELOP_JOB_PREPARE}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_BUILD                 \e[39;42;1m${VAR_DEVELOP_JOB_BUILD}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_PAGES                 \e[39;42;1m${VAR_DEVELOP_JOB_PAGES}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_UPDATECONFIG          \e[39;42;1m${VAR_DEVELOP_JOB_UPDATECONFIG}\e[0m"
+    - fi
+    - >
+      if [[ "${PIPELINE_DEVELOP}" == "true" ]] && [[ "${VAR_DEVELOP_CORE_REF}" != "" ]]; then
+        CORE_REF=${VAR_DEVELOP_CORE_REF}
+      fi
+    - echo -e "CORE_REF                              \e[39;42;1m${CORE_REF}\e[0m"
+    - echo -e "CORE_PATH                             \e[39;42;1m${CORE_PATH}\e[0m"
+  clone-core:
+    # We are on a doc client project, cloning core to grab tools
+    - >
+      if [[ "${CI_PROJECT_ID}" != "${CORE_PROJECT_ID}" ]]; then
+
+        if [ -d "${CORE_PATH}" ]; then
+          echo "Found cache for ${CORE_PATH}, renaming to ${CORE_PATH}_cache"
+          mv "${CORE_PATH}" "${CORE_PATH}_cache"
+        fi
+
+        WORK_PATH=$(pwd)
+        git clone https://${CI_SERVER_HOST}/GIO/tech-guides/core.git ${CORE_PATH}
+        cd ${CORE_PATH}
+        git checkout ${CORE_REF}
+        cd ${WORK_PATH}
+
+        if [ -d "${CORE_PATH}_cache" ]; then
+          echo "Found cache: ${CORE_PATH}_cache"
+          if [ -f "${CORE_PATH}_cache/tech-guides/.installed_version.txt" ]; then
+            echo "Found cache for tech-guides/.installed_version.txt, moving to ${CORE_PATH}"
+            mv ${CORE_PATH}_cache/tech-guides/.installed_version.txt ${CORE_PATH}/tech-guides/.installed_version.txt
+          fi
+          if [ -d "${CORE_PATH}_cache/tech-guides/.yarn" ]; then
+            echo "Found cache for /tech-guides/.yarn, moving to ${CORE_PATH}"
+            mv "${CORE_PATH}_cache/tech-guides/.yarn" "${CORE_PATH}/tech-guides/.yarn"
+          fi
+          if [ -d "${CORE_PATH}_cache/tech-guides/node_modules" ]; then
+            echo "Found cache for tech-guides/node_modules, moving to ${CORE_PATH}"
+            mv "${CORE_PATH}_cache/tech-guides/node_modules" "${CORE_PATH}/tech-guides/node_modules"
+          fi
+        fi
+
+      fi
+
+prepare:build:
+  stage: prepare
+  rules:
+    # Disable job when requested in develop
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_BUILD == "false"
+      when: never
+    - when: on_success
+  cache: []
+  script:
+    - |
+      echo -e "CI_PROJECT_ID                         \e[39;42;1m${CI_PROJECT_ID}\e[0m"
+      echo -e "CORE_PROJECT_ID                       \e[39;42;1m${CORE_PROJECT_ID}\e[0m"
+      echo -e "CLIENT_PROJECT_ID                     \e[39;42;1m${CLIENT_PROJECT_ID}\e[0m"
+      echo -e "CI_COMMIT_BRANCH                      \e[39;42;1m${CI_COMMIT_BRANCH}\e[0m"
+      echo -e "CI_COMMIT_SHA                         \e[39;42;1m${CI_COMMIT_SHA}\e[0m"
+      echo -e "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME   \e[39;42;1m${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}\e[0m"
+      echo -e "CI_DEFAULT_BRANCH                     \e[39;42;1m${CI_DEFAULT_BRANCH}\e[0m"
+      echo -e "CI_PIPELINE_SOURCE                    \e[39;42;1m${CI_PIPELINE_SOURCE}\e[0m"
+      echo -e "TEST_DOCUMENTATION                    \e[39;42;1m${TEST_DOCUMENTATION}\e[0m"
+
+    # DEVELOP
+    - echo -e "PIPELINE_DEVELOP                      \e[39;42;1m${PIPELINE_DEVELOP}\e[0m"
+    - if [[ "${PIPELINE_DEVELOP}" == "true" ]]; then
+    - |
+        echo -e "VAR_DEVELOP_CORE_REF                  \e[39;42;1m${VAR_DEVELOP_CORE_REF}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_TRIGGER               \e[39;42;1m${VAR_DEVELOP_JOB_TRIGGER}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_COVERAGE              \e[39;42;1m${VAR_DEVELOP_JOB_COVERAGE}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_PREPARE               \e[39;42;1m${VAR_DEVELOP_JOB_PREPARE}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_SONAR                 \e[39;42;1m${VAR_DEVELOP_JOB_SONAR}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_BUILD                 \e[39;42;1m${VAR_DEVELOP_JOB_BUILD}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_PAGES                 \e[39;42;1m${VAR_DEVELOP_JOB_PAGES}\e[0m"
+        echo -e "VAR_DEVELOP_JOB_UPDATECONFIG          \e[39;42;1m${VAR_DEVELOP_JOB_UPDATECONFIG}\e[0m"
+        echo -e "CI_REPOSITORY_URL                     \e[39;42;1m${CI_REPOSITORY_URL}\e[0m"
+        echo -e "CI_PROJECT_TITLE                      \e[39;42;1m${CI_PROJECT_TITLE}\e[0m"
+        echo -e "CI_PROJECT_URL                        \e[39;42;1m${CI_PROJECT_URL}\e[0m"
+        echo -e "CI_PROJECT_ID                         \e[39;42;1m${CI_PROJECT_ID}\e[0m"
+        echo -e "CI_PROJECT_NAME                       \e[39;42;1m${CI_PROJECT_NAME}\e[0m"
+        echo -e "CI_PROJECT_NAMESPACE                  \e[39;42;1m${CI_PROJECT_NAMESPACE}\e[0m"
+        echo -e "CI_PROJECT_PATH_SLUG                  \e[39;42;1m${CI_PROJECT_PATH_SLUG}\e[0m"
+        echo -e "CI_PROJECT_PATH                       \e[39;42;1m${CI_PROJECT_PATH}\e[0m"
+        echo -e "CI_COMMIT_BEFORE_SHA                  \e[39;42;1m${CI_COMMIT_BEFORE_SHA}\e[0m"
+        echo -e "CI_OPEN_MERGE_REQUESTS                \e[39;42;1m${CI_OPEN_MERGE_REQUESTS}\e[0m"
+        echo -e "CI_MERGE_REQUEST_IID                  \e[39;42;1m${CI_MERGE_REQUEST_IID}\e[0m"
+        echo -e "CI_MERGE_REQUEST_PROJECT_ID           \e[39;42;1m${CI_MERGE_REQUEST_PROJECT_ID}\e[0m"
+        echo -e "CI_MERGE_REQUEST_PROJECT_PATH         \e[39;42;1m${CI_MERGE_REQUEST_PROJECT_PATH}\e[0m"
+        echo -e "CI_MERGE_REQUEST_PROJECT_URL          \e[39;42;1m${CI_MERGE_REQUEST_PROJECT_URL}\e[0m"
+        echo -e "CI_MERGE_REQUEST_REF_PATH             \e[39;42;1m${CI_MERGE_REQUEST_REF_PATH}\e[0m"
+        echo -e "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME   \e[39;42;1m${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}\e[0m"
+        echo -e "CI_MERGE_REQUEST_SOURCE_PROJECT_ID    \e[39;42;1m${CI_MERGE_REQUEST_SOURCE_PROJECT_ID}\e[0m"
+        echo -e "CI_MERGE_REQUEST_SOURCE_PROJECT_PATH  \e[39;42;1m${CI_MERGE_REQUEST_SOURCE_PROJECT_PATH}\e[0m"
+        echo -e "CI_MERGE_REQUEST_SOURCE_PROJECT_URL   \e[39;42;1m${CI_MERGE_REQUEST_SOURCE_PROJECT_URL}\e[0m"
+        echo -e "CI_MERGE_REQUEST_TARGET_BRANCH_NAME   \e[39;42;1m${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}\e[0m"
+        echo -e "CI_MERGE_REQUEST_EVENT_TYPE           \e[39;42;1m${CI_MERGE_REQUEST_EVENT_TYPE}\e[0m"
+    - fi
+
+    # NOTE: [CORE] [main branch] [branch pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CORE_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+    -   echo "Core build main branch..."
+    -   URL=${CORE_URL}
+    -   BASE_URL=/
+    -   CORE_PATH=.
+    -   IS_PRODUCTION=true
+    -   PAGES_TARGET_PATH=public
+    - fi
+
+    # NOTE: [CORE] [feature branch] [merge_request pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CORE_PROJECT_ID}" ]] && [[ "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" != "" ]]; then
+    -   echo "Core build feature merge request..."
+    -   URL=${CORE_URL}
+    -   BASE_URL=/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}/
+    -   CORE_PATH=.
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}
+    - fi
+
+    # NOTE: [CORE] [feature branch] [branch pipeline] [develop only]
+    # DEVELOP
+    - if [[ "${CI_PROJECT_ID}" == "${CORE_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" != "${CI_DEFAULT_BRANCH}" ]] && [[ "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" == "" ]] && [[ "${PIPELINE_DEVELOP}" == "true" ]]; then
+    -   echo "Core build feature branch (develop, web or trigger)..."
+    -   URL=${CORE_URL}
+    -   BASE_URL=/branch/${CI_COMMIT_BRANCH}/
+    -   CORE_PATH=.
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_COMMIT_BRANCH}
+    - fi
+
+    # NOTE: [REGISTERED] [main branch] [branch pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" == "${CI_DEFAULT_BRANCH}" ]]; then
+    -   echo "Registered build main branch..."
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public
+    -   REPO_URL=https://${CI_SERVER_HOST}/${CI_PROJECT_PATH}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    - fi
+
+    # NOTE: [REGISTERED] [feature branch] [branch pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" != "${CI_DEFAULT_BRANCH}" ]] && [[ "${CI_COMMIT_BRANCH}" != "" ]]; then
+    -   echo "Registered build feature branch..."
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/branch/${CI_COMMIT_BRANCH}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_COMMIT_BRANCH}
+    -   REPO_URL=https://${CI_SERVER_HOST}/${CI_PROJECT_PATH}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    - fi
+
+    # NOTE: [REGISTERED] [feature branch] [merge_request pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_PROJECT_ID}" == "${CI_MERGE_REQUEST_SOURCE_PROJECT_ID}" ]] && [[ "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" != "" ]]; then
+    -   echo "Registered build feature merge request..."
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}
+    -   REPO_URL=https://${CI_SERVER_HOST}/${CI_PROJECT_PATH}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    - fi
+
+    # NOTE: [REGISTERED] [fork branch] [merge_request pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_PROJECT_ID}" != "${CI_MERGE_REQUEST_SOURCE_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" == "" ]]; then
+    -   echo "Registered build fork merge request..."
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/fork/${CI_MERGE_REQUEST_IID}-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/fork/${CI_MERGE_REQUEST_IID}-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}
+    -   REPO_URL=https://${CI_MERGE_REQUEST_SOURCE_PROJECT_URL}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    - fi
+
+    # NOTE: [FORKED] [any branch] [merge_request pipeline]
+    - if [[ "${CI_PROJECT_ID}" != "${CORE_PROJECT_ID}" ]] && [[ "${CI_PROJECT_ID}" != "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" != "" ]]; then
+    -   echo "Forked build merge request..."
+    -   echo "This is a fork from ${CLIENT_PROJECT_ID}"
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}
+    -   REPO_URL=https://${CI_SERVER_HOST}/${CI_PROJECT_PATH}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    -   FORKED_PROJECT_ID=${CI_PROJECT_ID}
+    - fi
+
+    # NOTE: [FORKED] [any branch] [branch pipeline]
+    - if [[ "${CI_PROJECT_ID}" != "${CORE_PROJECT_ID}" ]] && [[ "${CI_PROJECT_ID}" != "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" != "" ]]; then
+    -   echo "Forked build branch..."
+    -   echo "This is a fork from ${CLIENT_PROJECT_ID}"
+    -   URL=https://${CI_PROJECT_ROOT_NAMESPACE,,}.${CI_PAGES_DOMAIN}
+    -   BASE_URL=${CI_PAGES_URL:9+${#CI_PROJECT_ROOT_NAMESPACE}+${#CI_PAGES_DOMAIN}}/branch/${CI_COMMIT_BRANCH}/
+    -   CORE_PATH=techguides_core
+    -   IS_PRODUCTION=false
+    -   PAGES_TARGET_PATH=public/branch/${CI_COMMIT_BRANCH}
+    -   REPO_URL=https://${CI_SERVER_HOST}/${CI_PROJECT_PATH}
+    -   PROJECT_ID=${CLIENT_PROJECT_ID}
+    -   COMMIT_SHA=${CI_COMMIT_SHA}
+    -   FORKED_PROJECT_ID=${CI_PROJECT_ID}
+    - fi
+
+    # NOTE: [CORE] [any branch] [trigger pipeline]
+    - if [[ "${CI_PROJECT_ID}" == "${CORE_PROJECT_ID}" ]] && [[ "${CI_PIPELINE_SOURCE}" == "trigger" ]]; then
+    -   !reference [.common, get-project-id]
+    -   !reference [.common, get-repo-url]
+    -   !reference [.common, develop]
+    -   !reference [.common, clone-core]
+    -   SUBMODULE_PATH=docs%2F$(cat "${CORE_PATH}/config/core_config.yml" | yq -r ".project_${PROJECT_ID}".submodule)
+    - fi
+
+    - if [[ "${TEST_DOCUMENTATION}" == "true" ]]; then
+    -   TEST_ACTION=",test"
+    - else
+    -   TEST_ACTION=""
+    - fi
+
+    - echo "URL=${URL}" >> build.env
+    - echo "BASE_URL=${BASE_URL}" >> build.env
+    - echo "CORE_PATH=${CORE_PATH}" >> build.env
+    - echo "IS_PRODUCTION=${IS_PRODUCTION}" >> build.env
+    # PROJECT_ID, FORKED_PROJECT_ID, REPO_URL and SUBMODULE_PATH are left blank when no submodule update reference is needed (Core only)
+    - echo "PROJECT_ID=${PROJECT_ID}" >> build.env
+    # FORKED_PROJECT_ID is set only for forked projects
+    - echo "FORKED_PROJECT_ID=${FORKED_PROJECT_ID}" >> build.env
+    - echo "COMMIT_SHA=${COMMIT_SHA}" >> build.env
+    - echo "SUBMODULE_PATH=${SUBMODULE_PATH}" >> build.env
+    - echo "REPO_URL=${REPO_URL}" >> build.env
+    - echo "PAGES_TARGET_PATH=${PAGES_TARGET_PATH}" >> build.env
+    - echo "TEST_ACTION=${TEST_ACTION}" >> build.env
+
+    - cat build.env
+  needs: []
+  artifacts:
+    reports:
+      dotenv: build.env
+
+docs:build:
+  stage: build
+  rules:
+    # Disable job when requested in develop
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_PREPARE == "false"
+      when: never
+    - when: on_success
+  variables:
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+  cache:
+    - key:
+      # Required to keep artifacts from previous builds
+      paths:
+        - public
+    - key: "$BUILD_CACHE_KEY"
+      paths:
+        - tech-guides/.installed_version.txt
+        - tech-guides/.yarn/
+        - tech-guides/node_modules/
+        - techguides_core/tech-guides/.installed_version.txt
+        - techguides_core/tech-guides/.yarn/
+        - techguides_core/tech-guides/node_modules/
+  script:
+    - !reference [.common, develop]
+    - !reference [.common, clone-core]
+
+    - git --version
+    - WORK_PATH=$(pwd)
+
+    # Update submodule reference in config/core_config.yml and checkout submodules
+    - >
+      if [[ "${PROJECT_ID}" != "" ]] && [[ ! -z "${COMMIT_SHA}" ]]; then
+        echo "Updating submodule references..."
+        echo -e "PROJECT_ID              = \e[39;42;1m${PROJECT_ID}\e[0m - ${CI_SERVER_URL}/projects/${PROJECT_ID}"
+        echo -e "PROJECT_TITLE           = \e[39;42;1m${PROJECT_TITLE}\e[0m"
+        echo -e "COMMIT_SHA              = \e[39;42;1m${COMMIT_SHA} - ${REPO_URL}/-/tree/${COMMIT_SHA}\e[0m"
+        cd ${CORE_PATH}/scripts
+        python ./update_submodule_reference.py --project-id "${PROJECT_ID}" --forked-project-id "${FORKED_PROJECT_ID}" --reference "${COMMIT_SHA}" --config-file "../config/core_config.yml"
+        cd ${WORK_PATH}
+      fi
+
+    # Update cache in config/core_config.yml
+    - cd ${CORE_PATH}/scripts
+    # -> 0n Core project
+    - if [[ "${CI_PROJECT_ID}" == "${CORE_PROJECT_ID}" ]]; then
+    - echo "Updating cache..."
+    - python ./update_config_cache__core.py --read-token "${READ_API_TOKEN}" --config-file "../config/core_config.yml"
+    - fi
+    # -> On forked projects
+    - if [[ "${FORKED_PROJECT_ID}" != "" ]]; then
+    - echo "Updating cache..."
+    - python ./update_config_cache__forked.py --project-id "${FORKED_PROJECT_ID}" --project-url "${CI_PROJECT_URL}" --project-path-slug "${CI_PROJECT_PATH_SLUG}" --job-token "${CI_JOB_TOKEN}" --config-file "../config/core_config.yml"
+    - fi
+    - cd ${WORK_PATH}
+
+    - cat ${CORE_PATH}/config/core_config.yml
+
+    # Common
+    - cd ${CORE_PATH}/tools
+    - chmod +x ./build.bash
+
+    - echo "BUILD_CACHE_KEY = ${BUILD_CACHE_KEY}"
+
+    - |
+      echo "URL                 = ${URL}"
+      echo "BASE_URL            = ${BASE_URL}"
+      echo "IS_PRODUCTION       = ${IS_PRODUCTION}"
+      echo "TEST_DOCUMENTATION  = ${TEST_DOCUMENTATION}"
+    - ./build.bash "prepare,pull${TEST_ACTION},copy,build" "production" "${URL}" "${BASE_URL}" "${IS_PRODUCTION}" "true" "${CI_PROJECT_ID}" "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}"
+    - cd ${WORK_PATH}
+
+    - cat ${CORE_PATH}/tech-guides/config/service_desk_address.json
+    - cat ${CORE_PATH}/tech-guides/config/edit_url.json
+
+    # Move artifact to avoid path conflicts when build on client project
+    - mkdir -p build
+    - mkdir -p config_updated
+    - mv ${CORE_PATH}/tech-guides/build/* build/
+    - mv ${CORE_PATH}/config/core_config.yml config_updated/
+    - mv ${CORE_PATH}/tech-guides/docusaurus.config.js config_updated/
+    - mv ${CORE_PATH}/.gitmodules config_updated/
+  needs:
+    - job: prepare:build
+      artifacts: true
+  artifacts:
+    paths:
+      - build
+      - config_updated
+
+pages:
+  stage: publish
+  rules:
+    # Disable job when requested in develop
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_PAGES == "false"
+      when: never
+    - when: on_success
+  resource_group: publish
+  cache:
+    - key:
+      # Required to keep artifacts from previous builds
+      paths:
+        - public
+  script:
+    - !reference [.common, develop]
+    - !reference [.common, clone-core]
+
+    - mkdir -p tmp
+
+    # Clean artifact in branch folder
+    - echo "Running ${CORE_PATH}/scripts/clean_pages_artifacts__branch.py --branch-cache-folder \"public/branch\""
+    - python ${CORE_PATH}/scripts/clean_pages_artifacts__branch.py --branch-cache-folder "public/branch"
+
+    # Clean artifact in fork folder, run on registered project only (not on forked projects)
+    #   As we use API without authentication, it works only for public projects
+    - if [[ "${CI_PROJECT_ID}" == "${CLIENT_PROJECT_ID}" ]] && [[ "${CI_PROJECT_ID}" != "${CI_MERGE_REQUEST_SOURCE_PROJECT_ID}" ]] && [[ "${CI_COMMIT_BRANCH}" == "" ]]; then
+    - echo "Running python ${CORE_PATH}/scripts/clean_pages_artifacts__fork.py --project-id \"${CI_PROJECT_ID}\" --fork-cache-folder \"public/fork\""
+    - python ${CORE_PATH}/scripts/clean_pages_artifacts__fork.py --project-id "${CI_PROJECT_ID}" --fork-cache-folder "public/fork"
+    - fi
+
+    # Creating public/branch and public/fork when public is absent from cache
+    - mkdir -p public/branch
+    - mkdir -p public/fork
+
+    - echo -e "PAGES_TARGET_PATH                     \e[39;42;1m${PAGES_TARGET_PATH}\e[0m"
+    - if [[ "${PAGES_TARGET_PATH}" == "public" ]]; then
+    # Remove all except branch and fork folders
+    - mv public/branch tmp
+    - mv public/fork tmp
+    - rm -rf public
+    - mkdir -p public/branch
+    - mkdir -p public/fork
+    - mv tmp/branch public
+    - mv tmp/fork public
+    - else
+    # Clean previous build artifacts in pages as this build will replace them
+    - rm -rf $PAGES_TARGET_PATH
+    - fi
+
+    # Copy current build artifacts to pages
+    - mkdir -p $PAGES_TARGET_PATH
+    - cp build/* $PAGES_TARGET_PATH/ -R
+
+    - |
+      echo -e "\e[39;42;1m###################################################\e[0m"
+      echo -e "\n"
+      echo -e "URL for this build"
+      echo -e "${URL}${BASE_URL}"
+      echo -e "\n"
+      echo -e "\e[39;42;1m###################################################\e[0m"
+  artifacts:
+    paths:
+      - public

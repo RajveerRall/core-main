@@ -1,0 +1,6 @@
+{
+  "sonarlint.connectedMode.project": {
+    "connectionId": "https-sonar-apps-airliquide-com",
+    "projectKey": "tech-guides-core"
+  }
+}

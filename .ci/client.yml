@@ -1,0 +1,79 @@
+include:
+  - project: GIO/tech-guides/core
+    ref: main
+    file: .ci/common.yml
+
+variables:
+  extends: .develop:variables
+
+  # Build test documentation only
+  TEST_DOCUMENTATION: "false"
+  CORE_REF: "main"
+  CORE_PROJECT_ID: "925"
+
+  # Must be shared for client CI
+  BUILD_CACHE_KEY: "shared"
+
+workflow:
+  rules:
+    # NOTE: [REGISTERED, FORKED] [tag] [tag pipeline]
+      # Never not run on tags
+    - if: $CI_COMMIT_TAG
+      when: never
+    # NOTE: [REGISTERED, FORKED] [any branch] [merge_request pipeline]
+      # Always run on merge requests
+    - if: $CI_MERGE_REQUEST_IID
+      when: always
+    # NOTE: [FORKED] [any branch] [branch pipeline]
+      # Run on branch when no merge request exists
+      # Do not run on new branch
+    - if: $CI_COMMIT_BRANCH &&
+          $CI_PROJECT_ID != $CLIENT_PROJECT_ID &&
+          $CI_OPEN_MERGE_REQUESTS == null &&
+          $CI_COMMIT_BEFORE_SHA != "0000000000000000000000000000000000000000"
+      when: always
+    # NOTE: [REGISTERED] [main branch] [branch pipeline]
+      # Run on main branch after a merge
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH &&
+          $CI_PROJECT_ID == $CLIENT_PROJECT_ID
+      variables:
+        # Enforce TEST_DOCUMENTATION and PIPELINE_DEVELOP on default branch
+        TEST_DOCUMENTATION: "false"
+        PIPELINE_DEVELOP: "false"
+      when: always
+    - when: never
+
+stages:
+  - prepare
+  - build
+  - publish
+  - trigger
+
+trigger:core:build:
+  stage: trigger
+  rules:
+    - if: $CI_PROJECT_ID != $CLIENT_PROJECT_ID # Never not run on forks
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+    - if: $PIPELINE_DEVELOP == "true" &&
+          $CI_PIPELINE_SOURCE == 'merge_request_event' &&
+          $VAR_DEVELOP_CORE_REF != "main" &&
+          $VAR_DEVELOP_CORE_REF != "master" &&
+          $VAR_DEVELOP_CORE_REF != "" &&
+          $VAR_DEVELOP_JOB_TRIGGER == "true" &&
+          $CI_PROJECT_ID == $CI_MERGE_REQUEST_SOURCE_PROJECT_ID # Run only for origin project (not for merge request pipeline from fork)
+      when: on_success
+    - when: never
+  cache: []
+  script:
+    - !reference [.common, develop]
+
+    - echo "This job should trigger a core pipeline if project build is success"
+    - curl -X POST
+      -F "token=${TOKEN_CORE_TRIGGER}"
+      -F "ref=${CORE_REF}"
+      -F "variables[COMMIT_SHA]=${CI_COMMIT_SHA}"
+      -F "variables[PROJECT_TITLE]=${CI_PROJECT_TITLE}"
+      -F "variables[TOKEN_CORE_TRIGGER]=${TOKEN_CORE_TRIGGER}"
+      https://git.apps.airliquide.com/api/v4/projects/925/trigger/pipeline

@@ -1,0 +1,39 @@
+---
+title: PlantUML
+doc_version: 2022-08-04
+---
+
+```plantuml
+!include <awslib/AWSCommon>
+!include <awslib/AWSSimplified>
+
+!include <awslib/Compute/EC2>
+!include <awslib/Compute/Lambda>
+!include <awslib/CustomerEngagement/SESEmail>
+!include <awslib/ManagementGovernance/SystemsManagerParameterStore>
+!include <awslib/General/Users>
+!include <awslib/SecurityIdentityCompliance/SecretsManager>
+!include <awslib/SecurityIdentityCompliance/IdentityAccessManagementRole>
+
+!theme aws-orange
+
+skinparam linetype ortho
+'left to right direction
+
+
+package "EU Automation Account" {
+    frame "Main Account Runner" {
+        EC2(MainRunnerAutom, "Runner", "")
+        IdentityAccessManagementRole(MainRunnerAutomRole, "Runner Role", "")
+    }
+    SecretsManager(Secret, "Private SSH Key IAM For OnPrem Servers", "")
+    frame "For OnPrem Servers" {
+        EC2(RunnerForOnPremServer, "Runner For OnPrem Automation", "")
+        IdentityAccessManagementRole(OnPremRunnerAutomRole, "OnPrem Automation Runner Role", "")
+    }
+}
+
+MainRunnerAutom --> RunnerForOnPremServer: 1. Configure runner Security Group
+MainRunnerAutom --> Secret: 2. Store private ssh key in Secret Manager
+MainRunnerAutom --> OnPremRunnerAutomRole: 3. Configure runner Role
+```

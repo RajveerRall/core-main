@@ -1,0 +1,20 @@
+
+/*
+  Swizzle is not working for @easyops-cn/docusaurus-search-local
+    Content of this file will added by tools/build.bash (prepare stage) into SearchBar component CSS
+    -> node_modules/@easyops-cn/docusaurus-search-local/dist/client/client/theme/SearchBar/SearchBar.module.css
+*/
+
+.searchBarContainer {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.dropdownMenu {
+  width: 100% !important;
+}
+.searchBar {
+  width: 100%;
+}
+.searchHintContainer {
+  visibility: hidden;
+}

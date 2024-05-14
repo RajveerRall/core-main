@@ -1,0 +1,7 @@
+yq
+python-frontmatter
+Markdown
+GitPython
+requests
+ruamel.yaml
+charset-normalizer

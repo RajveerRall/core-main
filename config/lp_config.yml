@@ -1,0 +1,114 @@
+---
+sections:
+  - name: "Quick access"
+    icon: "img/lp_sidebar/quick_access_1.png"
+    cards:
+      - size: 1
+        pages:
+          - title: "Recommended GIO documentation"
+            icon: "img/lp_cards/most_viewed_5.png"
+            content: |
+              - [AWS Landing Zone Release Note](docs/cs/aws-lab-essential/intro/lzi-release-note/)
+              - [Golden AMI](docs/cs/aws-lab-essential/architecture-and-concepts/ec2-instances#gio-golden-ami/)
+              - [Tagging reference](docs/cs/aws-lab-essential/landing-zone-references/tagging-reference/)
+              - [Security & compliance](docs/cs/aws-lab-essential/architecture-and-concepts/security-compliance/)
+              - [Tooling](docs/cs/aws-lab-essential/tooling/)
+              - [Service catalog products](docs/cs/aws-lab-essential/service-catalog/overview/)
+            link: ""
+            color: ""
+      - size: 1
+        pages:
+          - title: "Recommended AWS documentation"
+            icon: "img/lp_cards/aws_1.png"
+            content: |
+              - <a href="https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html" target="_blank">ARNs and Namespaces<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+              - <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_actions-resources-contextkeys.html" target="_blank">Actions, Resources, and Condition Keys<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+              - <a href="https://awspolicygen.s3.amazonaws.com/policygen.html" target="_blank">IAM Policy Generator<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+              - <a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/EventTypes.html" target="_blank">CloudWatch Events examples<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+              - <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/CHAP_TemplateQuickRef.html" target="_blank">AWS-provided CloudFormation snippets<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+              - <a href="https://aws.amazon.com/cloudformation/aws-cloudformation-templates/" target="_blank">AWS CloudFormation examples<i class="fa-solid fa-arrow-up-right-from-square spacer_left"></i></a>
+            link: ""
+            color: ""
+      - size: 1
+        pages:
+          - title: "Writing guidelines"
+            icon: "img/lp_cards/guidelines_2.png"
+            content: "Discover our advice for writing an article."
+            link: "docs/pci/knowledge/contribute/writing-guidelines/"
+            color: ""
+  - name: "Start well with"
+    icon: "img/lp_sidebar/start_well_1.png"
+    cards:
+      - size: 1
+        pages:
+          - title: "GitLab"
+            icon: "img/lp_cards/gitlab_1.png"
+            content: "GitLab is our code versioning, collaboration tools."
+            link: "docs/cs/sf/gitlab/"
+            color: ""
+      - size: 1
+        pages:
+          - title: "GitLab CI"
+            icon: "img/lp_cards/gitlab_ci_1.png"
+            content: |
+              Shared runners, deployed in AWS Software Factory account that can be used by all projects.
+              Specific runners, deployed in the spoke account, they can be:
+              - CI runers: Can be used in the context of a project or a group of projects.
+              - CD runners: Are used to deploy application and infrastructure.
+            link: "docs/cs/sf/gitlab-ci/"
+            color: ""
+      - size: 1
+        pages:
+          - title: "SonarQube"
+            icon: "img/lp_cards/inspect_code_1.png"
+            content: "Static code analysis."
+            link: "docs/cs/sf/sonarqube/"
+            color: ""
+      - size: 1
+        pages:
+          - title: "Monitoring"
+            icon: "img/lp_cards/monitoring_3.png"
+            content: "With Monitoring as a Service, get real-time information about the performance of your infrastructure and increase your responsiveness while reducing uncertainty about the health of your infrastructure."
+            link: "docs/cs/aws-managed/aws-managed-operations/monitoring/"
+            color: ""
+      - size: 1
+        pages:
+          - title: "IAAS On Demand @AWS"
+            icon: "img/lp_cards/cloud_3.png"
+            content: "AWS IaaS EC2 facilitates extremely secure, cost-effective, flexible, and scalable cloud infrastructure and computing capacity. Also makes it easier to auto-scale resources and makes web-scale cloud computing easier."
+            link: "docs/cs/iaas-on-demand/intro/"
+            color: ""
+      - size: 1
+        pages:
+          - title: "SFTP"
+            icon: "img/lp_cards/sftp_2.png"
+            content: "The Cloud SFTP Service is a shared AWS Managed Solution providing a fully-managed and integrated SFTP capability for easy and secure file transfer across AWS environments, the data center and external systems using the AWS Transfer family for SFTP. The Clients can focus on their business flow rather than designing, building, securing and maintaining an SFTP infrastructure."
+            link: "docs/cs/cloud-sftp/intro"
+            color: ""
+news:
+  icon: "img/lp_sidebar/news_3.png"
+  display: 8
+  load_more: 4
+  max: 50
+  badges:
+    default_color: "#ededed"
+    names:
+      - name: "services"
+        color: "#489226"
+      - name: "documentations"
+        color: "#1638eb"
+      - name: "operations"
+        color: "#ffbf0f"
+footer:
+  items:
+    - name: "Network & Voice Expert Corner"
+      url: "https://currents.google.com/communities/118418298119412238288"
+    - name: "Cloud @ Air Liquide"
+      url: "https://currents.google.com/communities/111656499192363499313"
+    - name: "#GIO"
+      url: "https://site.airliquide.com/gio/"
+    - name: "Software Engineering @ Air Liquide"
+      url: "https://currents.google.com/communities/101777348906327448560"
+    - name: "COP - Google DEVelopers"
+      url: "https://currents.google.com/communities/103689646656883069756"
+...

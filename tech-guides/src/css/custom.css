@@ -1,0 +1,165 @@
+/* stylelint-disable docusaurus/copyright-header */
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700;800;900&display=swap");
+
+/* All pages */
+:root {
+  --ifm-color-primary: #003264;
+  --ifm-color-primary-dark: #002d5a;
+  --ifm-color-primary-darker: #002a55;
+  --ifm-color-primary-darkest: #002346;
+  --ifm-color-primary-light: #00376e;
+  --ifm-color-primary-lighter: #003973;
+  --ifm-color-primary-lightest: #004182;
+  --ifm-link-color: #2b579f;
+  /* font-family: 'Roboto', sans-serif; */
+  --doc-sidebar-width: 320px !important;
+  --ifm-container-width-xl: 2000px;
+  --ifm-footer-padding-vertical: 10px;
+
+  /* Landing page */
+  --lp-color-home-background: #ebebef;
+  --lp-color-landing-search-background: white;
+  --lp-color-landing-search-border: white;
+  --lp-color-title: var(--ifm-color-primary-light);
+  --lp-color-sidebar-background: white;
+  --lp-color-sidebar-border: white;
+  --lp-filter-icon: invert(0%);
+  --lp-color-cards-card-background: white;
+  --lp-color-cards-card-border: #ebebef;
+  --lp-color-cards-carousel-button-background: white;
+  --lp-color-cards-carousel-button-gradient: #e0e0e0;
+  --lp-color-cards-carousel-button-selector-background: black;
+  --lp-color-news-background: white;
+  --lp-color-news-border: white;
+  --lp-color-news-btn-readmore-background: #374769;
+  --lp-color-news-btn-readmore-background-gradient1: #f9f9f9;
+  --lp-color-news-btn-readmore-background-gradient2: #e9e9e9;
+  --lp-color-news-btn-readmore-text: white;
+  --lp-color-footer-background: var(--ifm-color-primary);
+
+  /* Version dropdown component */
+  --vdd-color-control-background: white;
+  --vdd-color-singleValue-text: black;
+  --vdd-color-menu-background: white;
+  --vdd-color-option-background-default: white;
+  --vdd-color-option-background-focus: var(--ifm-color-primary-dark);
+  --vdd-color-option-background-selected: var(--ifm-color-primary-dark);
+  --vdd-color-option-text-default: black;
+  --vdd-color-option-text-default-focus: white;
+  --vdd-color-option-text-default-selected: white;
+  --vdd-color-option-background-hover: var(--ifm-color-primary-darkest);
+  --vdd-color-option-text-hover: white;
+}
+[data-theme='dark'] {
+  --ifm-color-primary: #6bb5ff;
+  --ifm-color-primary-dark: #47a3ff;
+  --ifm-color-primary-darker: #359aff;
+  --ifm-color-primary-darkest: #007ffd;
+  --ifm-color-primary-light: #8fc7ff;
+  --ifm-color-primary-lighter: #a1d0ff;
+  --ifm-color-primary-lightest: #d8ebff;
+  --ifm-link-color: #4778c9;
+
+  /* Landing page */
+  --lp-color-home-background: var(--ifm-background-color);
+  --lp-color-landing-search-background: var(--ifm-color-emphasis-100);
+  --lp-color-landing-search-border: white;
+  --lp-color-title: var(--ifm-color-content);
+  --lp-color-sidebar-background: var(--ifm-color-emphasis-100);
+  --lp-color-sidebar-border: white;
+  --lp-filter-icon: invert(100%);
+  --lp-color-cards-card-background: var(--ifm-color-emphasis-100);
+  --lp-color-cards-card-border: white;
+  --lp-color-cards-carousel-button-background: var(--ifm-color-emphasis-300);
+  --lp-color-cards-carousel-button-gradient: #5c5c5c;
+  --lp-color-cards-carousel-button-selector-background: white;
+  --lp-color-news-background: var(--ifm-color-emphasis-100);
+  --lp-color-news-border: white;
+  --lp-color-news-btn-readmore-background: var(--ifm-color-emphasis-200);
+  --lp-color-news-btn-readmore-text: white;
+  --lp-color-news-btn-readmore-background-gradient1: #8f8e8e;
+  --lp-color-news-btn-readmore-background-gradient2: #3a3a3a;
+  --lp-color-footer-background: var(--ifm-color-emphasis-100);
+
+  /* Version dropdown component */
+  --vdd-color-control-background: #272729;
+  --vdd-color-singleValue-text: white;
+  --vdd-color-menu-background: #272729;
+  --vdd-color-option-background-default: #272729;
+  --vdd-color-option-background-focus: #3a3a3a;
+  --vdd-color-option-background-selected: #3a3a3a;
+  --vdd-color-option-text-default: white;
+  --vdd-color-option-text-default-focus: white;
+  --vdd-color-option-text-default-selected: white;
+  --vdd-color-option-background-hover: #5c5c5c;
+  --vdd-color-option-text-hover: white;
+}
+code {
+  color: #e96900;
+}
+.footer__logo {
+  margin-top: 0.2rem;
+}
+.navbar__search {
+  width: 100%;
+}
+.navbar__search-input {
+  width: 100%;
+  border-radius: 0rem;
+}
+.spacer_left {
+  margin-left: 0.3em;
+}
+/* For cards with specific height*/
+.tg_row_200 {
+  min-height: 200;
+}
+.tg_row_250 {
+  min-height: 250px;
+}
+.tg_row_300 {
+  min-height: 300px;
+}
+.tg_row_350 {
+  min-height: 350px;
+}
+.tg_row_400 {
+  min-height: 400px;
+}
+.tg_row_450 {
+  min-height: 450px;
+}
+.tg_row_500 {
+  min-height: 500px;
+}
+@media (max-width: 996px) {
+  .tg_row_200 {
+    min-height: unset;
+  }
+  .tg_row_250 {
+    min-height: unset;
+  }
+  .tg_row_300 {
+    min-height: unset;
+  }
+  .tg_row_350 {
+    min-height: unset;
+  }
+  .tg_row_400 {
+    min-height: unset;
+  }
+  .tg_row_450 {
+    min-height: unset;
+  }
+  .tg_row_500 {
+    min-height: unset;
+  }
+}

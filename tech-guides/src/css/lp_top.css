@@ -1,0 +1,24 @@
+.lp_top {
+  position: fixed;
+  right: 20px;
+  bottom: 70px;
+  color: #046aac;
+  cursor: pointer;
+  font-size: 20px;
+  border: none;
+  background: none;
+}
+/*Responsive*/
+/*
+@media (max-width: 576px) {
+}
+*/
+@media (max-width: 996px) {
+  .lp_top {
+    display: none;
+  }
+}
+/*
+@media (max-width: 1024px) {
+}
+*/

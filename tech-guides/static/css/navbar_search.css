@@ -1,0 +1,20 @@
+.navbar__items--right {
+  width: 44px;
+}
+.navbar__search-input {
+  border-radius: 5px;
+}
+.navbar__search:focus-within {
+  width: 600px;
+  z-index: 10;
+}
+.navbar__search {
+  width: 44px;
+  margin-right: 0px !important;
+}
+@media(max-width: 632px){
+  .navbar__search:focus-within {
+    width: 100%;
+    padding-right: 16px;
+  }
+}

@@ -1,0 +1,202 @@
+include:
+  - project: 'GIO/software-factory/ci-cd-tests-python'
+    ref: "1.1-stable"
+    file: '.ci/tests-python.yml'
+
+  - project: 'GIO/software-factory/ci-cd-sonarqube-scan'
+    ref: "1.1-stable"
+    file: '.ci/sonarqube-scan.yml'
+
+  - local: .ci/common.yml
+
+variables:
+  extends: .develop:variables
+
+  TEST_DOCUMENTATION:
+    value: "false"
+    description: "Set to true to build test documentation (enforced to false on main branch)"
+
+  # Set to true to run only quality and test stage (enforced to false on main branch)
+  TEST_CODE: "true"
+
+  CORE_URL: "https://tech-guides.apps.airliquide.com"
+  CORE_REF: main
+  CORE_PROJECT_ID: "925"
+
+  BUILD_CACHE_KEY: "$CI_COMMIT_REF_SLUG"
+
+  GIO_COVERAGE_PROD_REQUIREMENTS: scripts/requirements.txt
+
+
+
+  # Variables initialized by pipeline trigger from client project
+  #   PROJECT_TITLE: ""
+  #   COMMIT_SHA: ""
+  #   REPO_URL: ""
+  #   TOKEN_CORE_TRIGGER: ""
+
+workflow:
+  rules:
+    # Do not run pipeline when updating ref
+    - if: $CI_COMMIT_BRANCH =~ /^ref-update-.*/ || $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^ref-update-.*/
+      when: never
+    # Allow run when developing pipeline
+    - if: $PIPELINE_DEVELOP == "true" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && ($CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "web")
+      when: always
+    # Merge request pipeline only, do not run on tag
+    - if: $CI_MERGE_REQUEST_IID
+      when: always
+    - if: $CI_COMMIT_TAG
+      when: never
+    # Build on pipeline trigger on main
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "trigger"
+      variables:
+        TEST_DOCUMENTATION: "false"
+        TEST_CODE: "false"
+      when: always
+    # Build on push or merge but not for service account
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $GITLAB_USER_NAME != $REPOSITORY_WRITE_USER
+      variables:
+        TEST_DOCUMENTATION: "false"
+        TEST_CODE: "false"
+      when: always
+    - when: never
+
+stages:
+  - develop
+  - test
+  - quality
+  - security
+  - prepare
+  - build
+  - update
+  - publish
+
+.develop:env:
+  stage: develop
+  cache: []
+  script:
+    - env
+
+test:coverage:python:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: never
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_COVERAGE == "false"
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+
+quality:scan:sonarqube:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: never
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_SONAR == "false"
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+  needs: []
+
+update:config:
+  stage: update
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "trigger"
+      when: on_success
+    - if: $PIPELINE_DEVELOP == "true" && $VAR_DEVELOP_JOB_UPDATECONFIG == "true" && $GITLAB_USER_NAME != $REPOSITORY_WRITE_USER
+      when: on_success
+    - when: never
+  resource_group: publish
+  cache: []
+  script:
+    - !reference [.common, develop]
+    # TODO: Need rework as SUBMODULE_PATH is by default defined in prepare:build job
+    - if [[ "${PIPELINE_DEVELOP}" == "true" ]] && [[ "${VAR_DEVELOP_JOB_UPDATECONFIG}" == "true" ]]; then
+    -   COMMIT_SHA=${VAR_DEVELOP_JOB_UPDATECONFIG_COMMIT_SHA}
+    -   PROJECT_TITLE=${VAR_DEVELOP_JOB_UPDATECONFIG_PROJECT_TITLE}
+    -   SUBMODULE_PATH=docs%2F$(cat "${CORE_PATH}/config/core_config.yml" | yq -r ".project_${VAR_DEVELOP_JOB_UPDATECONFIG_PROJECT_ID}".submodule)
+    - |
+        echo -e "PROJECT_ID                            \e[39;42;1m${PROJECT_ID}\e[0m"
+        echo -e "PROJECT_TITLE                         \e[39;42;1m${PROJECT_TITLE}\e[0m"
+        echo -e "COMMIT_SHA                            \e[39;42;1m${COMMIT_SHA}\e[0m"
+        echo -e "SUBMODULE_PATH                        \e[39;42;1m${SUBMODULE_PATH}\e[0m"
+    - fi
+
+    - echo $GITLAB_USER_EMAIL
+    - echo $CI_RUNNER_DESCRIPTION
+    #- echo $CI_COMMIT_REF_NAME
+
+    # Create new branch
+    - REF_UPDATE_BRANCH=ref-update-$(echo ${PROJECT_TITLE} | sed 's/[^a-zA-Z0-9]/-/g; s/ /-/g; s/-$//' | tr '[:upper:]' '[:lower:]')-${COMMIT_SHA}
+
+    - WORK_PATH=$(pwd)
+    - git clone https://${CI_SERVER_HOST}/GIO/tech-guides/core.git techguides_core
+    - cd techguides_core
+    - git config user.email "${GITLAB_USER_EMAIL}"
+    - git config user.name "${CI_RUNNER_DESCRIPTION}"
+    - git remote set-url origin "https://${REPOSITORY_WRITE_USER}:${REPOSITORY_WRITE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    - git checkout ${CORE_REF}
+    - git checkout -b ${REF_UPDATE_BRANCH}
+    - git push -u origin ${REF_UPDATE_BRANCH} --set-upstream
+    - git status
+    - cd ${WORK_PATH}
+
+    # Create merge request
+    - 'MERGE_REQUEST_IID=$(curl --request POST --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests" --form "source_branch=${REF_UPDATE_BRANCH}" --form "target_branch=${CORE_REF}" --form "title=Reference update for ${PROJECT_TITLE}" --form "description=Commit SHA: ${COMMIT_SHA}" | jq ''.iid'')'
+    - echo ${MERGE_REQUEST_IID}
+
+    # Copy core_config.yml from artifact
+    - echo "Original core_config.yml (prior update)"
+    - cat config/core_config.yml
+    - cp -f config_updated/core_config.yml techguides_core/config/core_config.yml
+    - echo "Updated core_config.yml"
+    - cat techguides_core/config/core_config.yml
+
+    # Copy .gitmodules from artifact
+    - echo "Original .gitmodules (prior update)"
+    - cat .gitmodules
+    - cp -f config_updated/.gitmodules techguides_core/.gitmodules
+    - echo "Updated .gitmodules"
+    - cat techguides_core/.gitmodules
+
+    - cd techguides_core
+    - git add config/core_config.yml
+    - git add .gitmodules
+    - CHANGES=$(git status --untracked-files=no --porcelain | wc -l)
+    - if [ ${CHANGES} -gt 0 ]; then
+    -   git status --untracked-files=no
+    -   git commit -m "Reference update"
+    -   git push origin "HEAD:${REF_UPDATE_BRANCH}"
+    - fi
+
+    - git status --untracked-files=no
+    - cd ${WORK_PATH}
+
+    # Update submodule reference
+    - 'curl --request PUT --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/submodules/${SUBMODULE_PATH}" --data "branch=${REF_UPDATE_BRANCH}&commit_sha=${COMMIT_SHA}&commit_message=Update submodule reference"'
+
+    # Set delete source branch and squash
+    - 'curl --request PUT --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MERGE_REQUEST_IID}" --data "remove_source_branch=true&squash=true"'
+
+    # Mark merge request as ready
+    - 'curl --request POST --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MERGE_REQUEST_IID}/notes?body=/ready"'
+
+    # Merge
+    - |
+        timeout=90
+        start_time=$(date +%s)
+        while [[ "${MERGE_STATUS}" != \"can_be_merged\" ]]; do
+          if [[ $(date +%s) -gt $((start_time + timeout)) ]]; then
+            echo "Timeout reached"
+            break
+          fi
+          MERGE_STATUS=$(curl --request GET --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MERGE_REQUEST_IID}" | jq '.merge_status')
+          echo ${MERGE_STATUS}
+          sleep 5
+        done
+
+    - MERGE_STATUS=${MERGE_STATUS//\"}
+    - if [[ "${MERGE_STATUS}" == "can_be_merged" ]]; then
+    -   'curl --request PUT --header "PRIVATE-TOKEN: ${WRITE_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${MERGE_REQUEST_IID}/merge"'
+    - else
+    -   exit 1
+    - fi

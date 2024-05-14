@@ -1,0 +1,15 @@
+[submodule "docs/cs"]
+	path = docs/cs
+	url = https://git.apps.airliquide.com/GIO/tech-guides/cloud-services.git
+[submodule "docs/pci"]
+	path = docs/pci
+	url = https://git.apps.airliquide.com/GIO/tech-guides/pci.git
+[submodule "docs/sec"]
+	url = https://git.apps.airliquide.com/GIO/tech-guides/security.git
+	path = docs/sec
+[submodule "docs/alz"]
+	path = docs/alz
+	url = https://git.apps.airliquide.com/GIO/tech-guides/alizent.git
+[submodule "docs/contribute"]
+	path = docs/contribute
+	url = https://git.apps.airliquide.com/GIO/tech-guides/contribute.git

@@ -1,0 +1,14 @@
+**/.DS_Store
+commit_push.bat
+tech-guides/config/
+tech-guides/data/
+tech-guides/news/
+tech-guides/docs/
+tech-guides/work/
+tech-guides/static/prj/
+tech-guides/.yarnrc.yml
+tech-guides/.installed_version.txt
+tools/yarn-error.log
+__pycache__
+tests/tmp/
+.coverage

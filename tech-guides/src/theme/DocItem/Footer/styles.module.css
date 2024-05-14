@@ -1,0 +1,42 @@
+.lastUpdated {
+  margin-top: 0.2rem;
+  font-style: italic;
+  font-size: smaller;
+}
+
+/* AL custom ==> Start */
+.doc_footerEmoji {
+  text-align: center;
+  padding-top: 30px;
+}
+
+.doc_footerEmojiText {
+  color: var(--ifm-color-primary-lightest);
+  font-size: smaller;
+  margin-top: -4px;
+}
+
+.emoji {
+  font-size: 2em;
+  filter: grayscale();
+  opacity: 0.8;
+}
+
+.emoji:hover {
+  filter: none;
+  opacity: 1;
+  cursor: pointer;
+}
+
+#emoji_click {
+  filter: none;
+  opacity: 1;
+  cursor: pointer;
+}
+/* AL custom ==> End */
+
+@media (min-width: 997px) {
+  .lastUpdated {
+    text-align: right;
+  }
+}

@@ -1,0 +1,21 @@
+/*
+  Copyright (C) L'Air Liquide S.A. 2023
+  No license. All rights reserved.
+*/
+.versionDropDownContainer {
+  position: relative;
+  margin-left: calc(100% - 179px);
+  width: 0;
+  height: 0;
+}
+.versionDropDown {
+  position: absolute;
+  top: -4.5rem;
+  width: 180px;
+}
+/*Responsive*/
+@media (max-width: 576px) {
+  .versionDropDown {
+    top: -3.9rem;
+  }
+}
